@@ -80,6 +80,25 @@ def create_schedule(tasks: list[Task], start_time: str = "08:00"):
         if not placed:
             print(f"WARNING: Could not schedule '{task.name}'")
 
+    # Add free-time slots
+    schedule.sort(key=lambda item: item["start"])
+
+    free_time = []
+
+    for i in range(len(schedule) - 1):
+        current_end = datetime.strptime(schedule[i]["end"], "%H:%M")
+        next_start = datetime.strptime(schedule[i + 1]["start"], "%H:%M")
+
+        if current_end < next_start:
+            free_time.append({
+                "task": "Free Time",
+                "start": current_end.strftime("%H:%M"),
+                "end": next_start.strftime("%H:%M"),
+                "fixed": False
+            })
+
+    schedule.extend(free_time)
+
     schedule.sort(key=lambda item: item["start"])
 
     return schedule
