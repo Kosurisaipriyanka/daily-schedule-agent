@@ -49,7 +49,7 @@ print("\n=== Daily Schedule ===")
 
 schedule = create_schedule(tasks)
 
-errors = validate_schedule(schedule)
+errors = validate_schedule(schedule, tasks)
 
 if errors:
     print("\n❌ Schedule has errors:")

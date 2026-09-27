@@ -1,10 +1,24 @@
 from datetime import datetime
 
 
-def validate_schedule(schedule):
+def validate_schedule(schedule, tasks):
     errors = []
 
-    # Convert schedule times into datetime objects
+    # Tasks that were successfully scheduled
+    scheduled_tasks = {
+        item["task"]
+        for item in schedule
+        if item["task"] != "Break"
+    }
+
+    # Check for unscheduled tasks
+    for task in tasks:
+        if task.name not in scheduled_tasks:
+            errors.append(
+                f"Task not scheduled: {task.name}"
+            )
+
+    # Convert schedule times
     items = []
 
     for item in schedule:
@@ -19,7 +33,7 @@ def validate_schedule(schedule):
 
         items.append((start, end, item["task"]))
 
-    # Check for overlaps
+    # Check overlaps
     items.sort(key=lambda x: x[0])
 
     for i in range(len(items) - 1):
@@ -28,7 +42,8 @@ def validate_schedule(schedule):
 
         if current_end > next_start:
             errors.append(
-                f"Overlap: {items[i][2]} and {items[i + 1][2]}"
+                f"Overlap: {items[i][2]} "
+                f"and {items[i + 1][2]}"
             )
 
     return errors
