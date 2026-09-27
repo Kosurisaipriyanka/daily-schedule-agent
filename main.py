@@ -1,5 +1,6 @@
 from models import Task
 from planner import prioritize_tasks, create_schedule
+from validator import validate_schedule
 
 tasks = []
 
@@ -44,14 +45,24 @@ for task in planned_tasks:
         f"Priority: {task.priority}"
     )
 
-
 print("\n=== Daily Schedule ===")
 
 schedule = create_schedule(tasks)
 
-for item in schedule:
-    print(
-        f"{item['start']}:00 - "
-        f"{item['end']}:00 → "
-        f"{item['task']}"
-    )
+errors = validate_schedule(schedule)
+
+if errors:
+    print("\n❌ Schedule has errors:")
+
+    for error in errors:
+        print("-", error)
+
+else:
+    print("\n✅ Schedule is valid!")
+
+    for item in schedule:
+        print(
+            f"{item['start']} - "
+            f"{item['end']} → "
+            f"{item['task']}"
+        )
