@@ -1,66 +1,176 @@
+from pydantic import ValidationError
+
 from models import Task
+from llm_parser import parse_tasks
 from planner import prioritize_tasks, create_schedule
 from validator import validate_schedule
 
-tasks = []
 
 print("=== Daily Schedule Agent ===")
 
-while True:
-    name = input("\nEnter task name (or 'done' to finish): ")
 
-    if name.lower() == "done":
-        break
+# ------------------------------------------------
+# 1. Get user input
+# ------------------------------------------------
 
-    duration = float(input("Enter duration in hours: "))
-    priority = int(input("Enter priority (1=High, 2=Medium, 3=Low): "))
-    fixed = input("Is this a fixed-time task? (y/n): ")
+user_input = input(
+    "\nDescribe your day: "
+)
 
-    if fixed.lower() == "y":
-        fixed_start = input("Enter start time (HH:MM): ")
-        fixed_end = input("Enter end time (HH:MM): ")
-    else:
-        fixed_start = None
-        fixed_end = None
 
-    task = Task(
-        name=name,
-        duration=duration,
-        priority=priority,
-        fixed_start=fixed_start,
-        fixed_end=fixed_end
+# ------------------------------------------------
+# 2. Gemini extracts tasks
+# ------------------------------------------------
+
+task_data = parse_tasks(
+    user_input
+)
+
+
+# ------------------------------------------------
+# 3. Handle Gemini/API failure
+# ------------------------------------------------
+
+if not task_data:
+
+    print(
+        "\n❌ Could not create the schedule."
     )
 
-    tasks.append(task)
+    print(
+        "Gemini did not return valid task data."
+    )
+
+    exit()
 
 
-print("\n=== Agent's Planned Order ===")
+# ------------------------------------------------
+# 4. Convert Gemini JSON → Pydantic objects
+# ------------------------------------------------
 
-planned_tasks = prioritize_tasks(tasks)
+try:
 
-for task in planned_tasks:
+    tasks = [
+        Task(**task)
+        for task in task_data
+    ]
+
+except ValidationError as e:
+
+    print(
+        "\n❌ Invalid task data received "
+        "from Gemini."
+    )
+
+    print(e)
+
+    exit()
+
+
+# ------------------------------------------------
+# 5. Show extracted tasks
+# ------------------------------------------------
+
+print(
+    "\n=== Tasks Extracted by Gemini ==="
+)
+
+
+for task in tasks:
+
     print(
         f"{task.name} | "
         f"{task.duration} hours | "
         f"Priority: {task.priority}"
     )
 
-print("\n=== Daily Schedule ===")
 
-schedule = create_schedule(tasks)
+# ------------------------------------------------
+# 6. Planning / prioritization
+# ------------------------------------------------
 
-errors = validate_schedule(schedule, tasks)
+print(
+    "\n=== Agent's Planned Order ==="
+)
+
+
+planned_tasks = prioritize_tasks(
+    tasks
+)
+
+
+for task in planned_tasks:
+
+    print(
+        f"{task.name} | "
+        f"{task.duration} hours | "
+        f"Priority: {task.priority}"
+    )
+
+
+# ------------------------------------------------
+# 7. Create schedule
+# ------------------------------------------------
+
+print(
+    "\n=== Daily Schedule ==="
+)
+
+
+schedule = create_schedule(
+    tasks
+)
+
+
+# ------------------------------------------------
+# 8. Validate schedule
+# ------------------------------------------------
+
+errors = validate_schedule(
+    schedule,
+    tasks
+)
+
+
+# ------------------------------------------------
+# 9. Show errors if any
+# ------------------------------------------------
 
 if errors:
-    print("\n❌ Schedule has errors:")
+
+    print(
+        "\n⚠️ Schedule has issues:"
+    )
 
     for error in errors:
-        print("-", error)
 
-else:
-    print("\n✅ Schedule is valid!")
+        print(
+            "-",
+            error
+        )
 
-    for item in schedule:
+
+# ------------------------------------------------
+# 10. Show schedule
+# ------------------------------------------------
+
+print(
+    "\n=== Final Schedule ==="
+)
+
+
+for item in schedule:
+
+    if item.get("unscheduled", False):
+
+        print(
+            f"❌ {item['task']} → "
+            f"NOT SCHEDULED "
+            f"({item['reason']})"
+        )
+
+    else:
+
         print(
             f"{item['start']} - "
             f"{item['end']} → "
